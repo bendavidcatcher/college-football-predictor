@@ -1,0 +1,16 @@
+{
+  "name": "college-football-predictor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack college football matchup predictor with an Ole Miss dashboard",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "seed": "npm run prisma:seed --prefix server",
+    "db:migrate": "npm run prisma:migrate --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

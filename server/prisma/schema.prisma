@@ -1,0 +1,109 @@
+// Prisma schema for the College Football Matchup Predictor.
+// PostgreSQL is the datasource; run `npm run prisma:migrate` to apply.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
+  passwordHash     String
+  name             String
+  createdAt        DateTime          @default(now())
+  savedPredictions SavedPrediction[]
+}
+
+model Team {
+  id             Int               @id @default(autoincrement())
+  name           String            @unique
+  abbreviation   String            @unique
+  mascot         String
+  conference     String
+  city           String
+  state          String
+  primaryColor   String
+  secondaryColor String
+  seasonStats    TeamSeasonStats[]
+  homeGames      Game[]            @relation("HomeTeam")
+  awayGames      Game[]            @relation("AwayTeam")
+  predictionsAsA Prediction[]      @relation("PredictionTeamA")
+  predictionsAsB Prediction[]      @relation("PredictionTeamB")
+}
+
+enum GameStatus {
+  SCHEDULED
+  FINAL
+}
+
+model Game {
+  id               Int        @id @default(autoincrement())
+  season           Int
+  week             Int
+  date             DateTime
+  status           GameStatus @default(SCHEDULED)
+  isConferenceGame Boolean    @default(true)
+  homeTeamId       Int
+  awayTeamId       Int
+  homeScore        Int?
+  awayScore        Int?
+  homeTeam         Team       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam         Team       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@index([season, week])
+}
+
+// One row per team per season. Averages are per-game figures.
+model TeamSeasonStats {
+  id                   Int   @id @default(autoincrement())
+  teamId               Int
+  season               Int
+  wins                 Int
+  losses               Int
+  conferenceWins       Int
+  conferenceLosses     Int
+  pointsPerGame        Float
+  pointsAllowedPerGame Float
+  yardsPerGame         Float
+  yardsAllowedPerGame  Float
+  turnoverMargin       Int
+  strengthOfSchedule   Float // 0..1, avg opponent quality
+  recentFormScore      Float // 0..10, wins in last 5 games * 2
+  team                 Team  @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, season])
+}
+
+model Prediction {
+  id                  Int               @id @default(autoincrement())
+  teamAId             Int
+  teamBId             Int
+  homeTeamId          Int? // null = neutral site
+  winnerTeamId        Int
+  teamAWinProbability Float
+  teamBWinProbability Float
+  projectedScoreA     Int
+  projectedScoreB     Int
+  factors             Json // PredictionFactor[] from the engine
+  summary             String
+  createdAt           DateTime          @default(now())
+  teamA               Team              @relation("PredictionTeamA", fields: [teamAId], references: [id])
+  teamB               Team              @relation("PredictionTeamB", fields: [teamBId], references: [id])
+  savedBy             SavedPrediction[]
+}
+
+model SavedPrediction {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  predictionId Int
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, predictionId])
+}
